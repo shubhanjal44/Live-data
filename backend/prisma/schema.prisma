@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+ datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  userId        String   @id @default(uuid()) @map("user_id")
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  firstName     String?  @map("first_name")
+  lastName      String?  @map("last_name")
+  mfaEnabled    Boolean  @default(false) @map("mfa_enabled")
+  storageQuota  BigInt   @default(5368709120) @map("storage_quota") // 5GB
+  storageUsed   BigInt   @default(0) @map("storage_used")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  lastLogin     DateTime? @map("last_login")
+  isActive      Boolean  @default(true) @map("is_active")
+
+  files         File[]
+  auditLogs     AuditLog[]
+  shares        Share[]
+  conversions   Conversion[]
+
+  @@map("users")
+}
+
+model File {
+  fileId        String   @id @default(uuid()) @map("file_id")
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [userId])
+  fileName      String   @map("file_name")
+  fileSize      BigInt   @map("file_size")
+  mimeType      String   @map("mime_type")
+  storagePath   String   @map("storage_path")
+  isPasswordProtected Boolean @default(false) @map("is_password_protected")
+  passwordHash  String?  @map("password_hash")
+  tags          String[] @db.Text[]
+  thumbnailKey  String?  @map("thumbnail_key")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+  isDeleted     Boolean  @default(false) @map("is_deleted")
+
+  shares        Share[]
+  conversions   Conversion[]
+
+  @@index([userId])
+  @@map("files")
+}
+
+model AuditLog {
+  logId        String   @id @default(uuid()) @map("log_id")
+  userId       String?  @map("user_id")
+  user         User?    @relation(fields: [userId], references: [userId])
+  action       String
+  resourceType String?
+  resourceId   String?
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  status       String?
+  details      Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+model Share {
+  shareId      String   @id @default(uuid()) @map("share_id")
+  userId       String   @map("user_id")
+  user         User     @relation(fields: [userId], references: [userId])
+  fileId       String   @map("file_id")
+  file         File     @relation(fields: [fileId], references: [fileId])
+  passwordHash String?  @map("password_hash")
+  expiresAt    DateTime? @map("expires_at")
+  maxDownloads Int?     @map("max_downloads")
+  downloads    Int      @default(0)
+  revoked      Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([fileId])
+  @@map("shares")
+}
+
+model Conversion {
+  conversionId String   @id @default(uuid()) @map("conversion_id")
+  userId       String   @map("user_id")
+  user         User     @relation(fields: [userId], references: [userId])
+  fileId       String   @map("file_id")
+  file         File     @relation(fields: [fileId], references: [fileId])
+  targetFormat String   @map("target_format")
+  status       String   @default("queued")
+  externalId   String?  @map("external_id")
+  resultKey    String?  @map("result_key")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([fileId])
+  @@index([externalId])
+  @@map("conversions")
+}
